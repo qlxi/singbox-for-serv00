@@ -180,7 +180,7 @@ pgrep -x "$SB_EXE" >/dev/null && echo -e "\e[1;32m$SB_EXE работает\e[0m"
 }
 
 ## (4) Добавление планового задания для cron
-bash <(curl -s https://raw.githubusercontent.com/xtfree/singbox-for-serv00/main/singbox/check_cron_sb.sh)
+bash <(curl -s https://raw.githubusercontent.com/qlxi/singbox-for-serv00/refs/heads/main/singbox/check_cron_sb.sh)
 
 ## (5) Запись ссылок на узлы в файл links.txt
 rm -f links.txt
