@@ -1,18 +1,18 @@
 #!/bin/bash
 ##（1）节点配置
 #服务端 IP 地址（仅用于输出节点链接）
-SERVER_IP="s12.serv00.com"
+SERVER_IP="s1.serv00.com"
 #socks5 配置
 SOCKS5_TCP_PORT=26584
-SOCKS5_USER="sk"
-SOCKS5_PASSWORD="skps2serv00"
+SOCKS5_USER="nxhack"
+SOCKS5_PASSWORD="dnCh2Cw4WdfbQHp4"
 #vless+ws 配置
 VLESS_WS_TCP_PORT=55031
-VLESS_WS_UUID="227892f6-9ffe-4474-b5ed-86460b159f2e"
+VLESS_WS_UUID="4b8ba16b-7a7f-46a9-8575-7b0a5595fa02"
 VLESS_WS_PATH="/ray"
 #hysteria2 配置
 HY2_UDP_PORT=55197
-HY2_PASSWORD="hy2ps2serv00"
+HY2_PASSWORD="hY7zME9p1vfmFHFT"
 
 ##（2）sing-box 安装和配置
 #sing-box 安装路径
