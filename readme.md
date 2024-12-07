@@ -24,7 +24,7 @@ bash <(curl -s https://raw.githubusercontent.com/qlxi/singbox-for-serv00/refs/he
 一键脚本卸载 sing-box 和相关配置：
 
 ```bash
-bash <(curl -s https://raw.githubusercontent.com/xtfree/singbox-for-serv00/main/singbox/singbox_uninstall.sh)
+bash <(curl -s https://raw.githubusercontent.com/qlxi/singbox-for-serv00/refs/heads/main/singbox/singbox_uninstall.sh)
 ```
 
 
