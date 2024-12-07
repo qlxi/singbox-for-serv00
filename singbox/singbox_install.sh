@@ -80,13 +80,13 @@ HY2_PASSWORD="${input_value:-$HY2_PASSWORD}"
 mkdir -p $SB_DIR/certs
 cd $SB_DIR/certs
 openssl ecparam -genkey -name prime256v1 -out private.key
-openssl req -new -x509 -days 36500 -key private.key -out cert.crt -subj "/CN=www.bing.com"
+openssl req -new -x509 -days 36500 -key private.key -out cert.crt -subj "/EN=time.android.com"
 chmod 666 cert.crt
 chmod 666 private.key
 
 #下载 freebsd 版本的 sing-box（命名为 sb，目的是为了防止服务器检测）
 cd $SB_DIR
-wget https://github.com/eooce/test/releases/download/freebsd/sb -O $SB_EXE
+wget https://github.com/qlxi/singbox-for-serv00/releases/download/singbox/singbox -O $SB_EXE
 chmod +x $SB_EXE
 
 cat >config.json <<EOF
@@ -129,11 +129,11 @@ cat >config.json <<EOF
       ],
       "tls": {
         "enabled": true,
-        "server_name": "www.bing.com",
+        "server_name": "time.android.com",
         "key_path": "$SB_DIR/certs/private.key",
         "certificate_path": "$SB_DIR/certs/cert.crt"
       },
-      "masquerade": "https://maimai.sega.jp"
+      "masquerade": "https://time.android.com"
     }
   ],
   "outbounds": [
@@ -187,4 +187,4 @@ bash <(curl -s https://raw.githubusercontent.com/xtfree/singbox-for-serv00/main/
 rm -f links.txt
 echo "vless+ws link：vless://$VLESS_WS_UUID@$SERVER_IP:$VLESS_WS_TCP_PORT?encryption=none&security=none&type=ws&path=$VLESS_WS_PATH#serv00-vless" >>$SB_DIR/links.txt
 echo "socks5 link：socks://$SOCKS5_USER:$SOCKS5_PASSWORD@$SERVER_IP:$SOCKS5_TCP_PORT#serv00-socks" >>$SB_DIR/links.txt
-echo "hysteria2 link：hysteria2://$HY2_PASSWORD@$SERVER_IP:$HY2_UDP_PORT/?sni=www.bing.com&insecure=1#serv00-hy2" >>$SB_DIR/links.txt
+echo "hysteria2 link：hysteria2://$HY2_PASSWORD@$SERVER_IP:$HY2_UDP_PORT/?sni=time.android.com&insecure=1#serv00-hy2" >>$SB_DIR/links.txt
