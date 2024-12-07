@@ -12,8 +12,7 @@
 一键脚本安装 sing-box 并自动配置 socks5、vless+ws、hysteria2 节点：
 
 ```bash
-bash <(curl -s https://raw.githubusercontent.com/xtfree/singbox-for-serv00/main/singbox/singbox_install.sh)
-#bash <(curl -s https://raw.githubusercontent.com/xtfree/singbox-for-serv00/refs/heads/main/singbox/singbox_install.sh)
+bash <(curl -s https://raw.githubusercontent.com/qlxi/singbox-for-serv00/refs/heads/main/singbox/singbox_install.sh)
 ```
 
 > 说明：
