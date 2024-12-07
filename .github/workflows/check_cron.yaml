@@ -32,7 +32,6 @@ jobs:
           echo "Executing for $username@$ssh"
           sshpass -p '$password' ssh -o StrictHostKeyChecking=no $username@$ssh "\
           bash <(curl -s https://raw.githubusercontent.com/xtfree/singbox-for-serv00/main/singbox/check_cron_sb.sh); \
-          bash <(curl -s https://raw.githubusercontent.com/xtfree/singbox-for-serv00/main/nezha/check_cron_nezha.sh) \
           "
           EOF
           done < <(jq -c '.[]' accounts.json)
