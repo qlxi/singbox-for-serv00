@@ -1,26 +1,26 @@
-name: Execute SSH Commands
+name: Выполнение SSH команд
 
 on:
-  workflow_dispatch: # 手动触发工作流
+  workflow_dispatch: # Ручной запуск рабочего процесса
   schedule:
-    - cron: "30 0,13 * * *"  # 每天 北京时间 早8点30分 晚9点30分 各运行一次。注意：GitHub Actions 使用的是 UTC（协调世界时间），而不是北京时间
+    - cron: "30 0,13 * * *"  # Каждый день в 8:30 и 21:30 по времени Пекина. Внимание: GitHub Actions использует UTC (координированное всемирное время), а не пекинское время.
 
 jobs:
   execute-commands:
     runs-on: ubuntu-latest
     steps:
-      - name: Set up SSHPass
+      - name: Установить SSHPass
         run: sudo apt-get update && sudo apt-get install -y sshpass
 
-      - name: Get ACCOUNTS_JSON
+      - name: Получить ACCOUNTS_JSON
         id: get-accounts
         run: |
           echo "$ACCOUNTS_JSON" > accounts.json
         env:
           ACCOUNTS_JSON: ${{ secrets.ACCOUNTS_JSON }}
-        # 从 GitHub Secrets 获取 ACCOUNTS_JSON 变量，并保存到文件 accounts.json
+        # Получить переменную ACCOUNTS_JSON из GitHub Secrets и сохранить в файл accounts.json
 
-      - name: Generate SSH Commands
+      - name: Генерация SSH команд
         id: generate-ssh-commands
         run: |
           echo "#!/bin/bash" > sshpass.sh
@@ -29,7 +29,7 @@ jobs:
             password=$(echo "$account" | jq -r '.password')
             ssh=$(echo "$account" | jq -r '.ssh')
             cat >> sshpass.sh << EOF
-          echo "Executing for $username@$ssh"
+          echo "Выполняю для $username@$ssh"
           sshpass -p '$password' ssh -o StrictHostKeyChecking=no $username@$ssh "\
           bash <(curl -s https://raw.githubusercontent.com/xtfree/singbox-for-serv00/main/singbox/check_cron_sb.sh); \
           "
@@ -37,5 +37,5 @@ jobs:
           done < <(jq -c '.[]' accounts.json)
           chmod +x sshpass.sh
 
-      - name: Execute SSH Commands
+      - name: Выполнение SSH команд
         run: ./sshpass.sh
