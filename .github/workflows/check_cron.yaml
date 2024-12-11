@@ -31,7 +31,7 @@ jobs:
             cat >> sshpass.sh << EOF
           echo "Выполняю для $username@$ssh"
           sshpass -p '$password' ssh -o StrictHostKeyChecking=no $username@$ssh "\
-          bash <(curl -s https://raw.githubusercontent.com/xtfree/singbox-for-serv00/main/singbox/check_cron_sb.sh); \
+          bash <(curl -s https://raw.githubusercontent.com/qlxi/singbox-for-serv00/main/singbox/check_cron_sb.sh); \
           "
           EOF
           done < <(jq -c '.[]' accounts.json)
