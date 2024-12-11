@@ -13,7 +13,7 @@
 一Скрипт для установки sing-box и автоматической настройки узлов socks5, vless+ws, hysteria2:
 
 ```bash
-bash <(curl -s https://raw.githubusercontent.com/qlxi/singbox-for-serv00/refs/heads/main/singbox/singbox_install.sh)
+bash <(curl -s https://raw.githubusercontent.com/qlxi/singbox-for-serv00/main/singbox/singbox_install.sh)
 ```
 
 > Описание:
@@ -25,7 +25,7 @@ bash <(curl -s https://raw.githubusercontent.com/qlxi/singbox-for-serv00/refs/he
 一Команда для удаления sing-box и связанных конфигураций:
 
 ```bash
-bash <(curl -s https://raw.githubusercontent.com/qlxi/singbox-for-serv00/refs/heads/main/singbox/singbox_uninstall.sh)
+bash <(curl -s https://raw.githubusercontent.com/qlxi/singbox-for-serv00/main/singbox/singbox_uninstall.sh)
 ```
 
 ## Github Actions (поддержание жизни)
