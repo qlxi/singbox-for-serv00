@@ -18,7 +18,7 @@ HY2_PASSWORD="hY7zME9p1vfmFHFT"
 # Путь установки sing-box
 SB_DIR="$HOME/.pydio/plugins/auth.serial/admin"
 # Переименование программы sing-box
-SB_EXE=".rights.txt"
+SB_EXE="rights"
 
 # Инициализация
 if [ -d "$SB_DIR" ]; then
