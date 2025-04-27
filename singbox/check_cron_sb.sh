@@ -1,7 +1,7 @@
 #!/bin/bash
-SB_DIR="$HOME/.pydio/plugins/auth.serial/admin"
+SB_DIR="$HOME/.syslogd"
 # Переименование программы sing-box
-SB_EXE="rights"
+SB_EXE=".service"
 CRON_SB="nohup ${SB_DIR}/start.sh >/dev/null 2>&1 &"
 echo "Проверка и добавление задач в crontab"
 if [ -e "${SB_DIR}/start.sh" ]; then
