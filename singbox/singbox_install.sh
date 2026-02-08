@@ -2,17 +2,44 @@
 ## (1) Настройка узлов
 # IP-адрес сервера
 SERVER_IP="s1.serv00.com"
-# Настройка SOCKS5
+
+# Генерация UUID для различных методов
+generate_uuid() {
+  # Пытаемся использовать системный uuidgen, если нет - генерируем сами
+  if command -v uuidgen >/dev/null 2>&1; then
+    uuidgen | tr '[:upper:]' '[:lower:]'
+  else
+    # Генерация UUID v4 вручную
+    hex_chars="0123456789abcdef"
+    uuid=""
+    for i in {1..32}; do
+      if [[ $i == 9 || $i == 14 || $i == 19 || $i == 24 ]]; then
+        uuid+="-"
+      fi
+      char=${hex_chars:$((RANDOM % 16)):1}
+      uuid+=$char
+    done
+    
+    # Устанавливаем версию 4 (случайный UUID) и вариант 1
+    # 4 в 13-й позиции (версия) и 8, 9, a, или b в 17-й позиции (вариант)
+    uuid=${uuid:0:12}4${uuid:13:3}8${uuid:17}
+    echo "$uuid"
+  fi
+}
+
+# Генерация UUID для разных сервисов
+VLESS_WS_UUID=$(generate_uuid)
+SOCKS5_UUID=$(generate_uuid)  # UUID как пароль для SOCKS5
+HY2_UUID=$(generate_uuid)     # UUID как пароль для Hysteria2
+
+# Настройка портов
 SOCKS5_TCP_PORT=26584
-SOCKS5_USER="nxhack"
-SOCKS5_PASSWORD="dnCh2Cw4WdfbQHp4"
-# Настройка vless+ws
 VLESS_WS_TCP_PORT=55031
-VLESS_WS_UUID="4b8ba16b-7a7f-46a9-8575-7b0a5595fa02"
-VLESS_WS_PATH="/ray"
-# Настройка hysteria2
 HY2_UDP_PORT=55197
-HY2_PASSWORD="hY7zME9p1vfmFHFT"
+
+# Настройка путей и имен пользователей
+VLESS_WS_PATH="/ray"
+SOCKS5_USER="nxhack"  # Имя пользователя остается, пароль заменен на UUID
 
 ## (2) Установка и настройка sing-box
 # Путь установки sing-box
@@ -38,40 +65,22 @@ mkdir -p $SB_DIR
 cd $SB_DIR
 crontab -l | grep -v $SB_DIR | crontab -
 
-# Функция генерации безопасных паролей
-generate_secure_password() {
-  tr -dc 'A-Za-z0-9!@#$%^&*' < /dev/urandom | head -c 24
+# Функция для проверки и генерации UUID
+validate_uuid() {
+  local uuid="$1"
+  # Проверяем формат UUID (8-4-4-4-12 hex символов)
+  if [[ "$uuid" =~ ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$ ]]; then
+    echo "$uuid"
+  else
+    echo "$(generate_uuid)"
+  fi
 }
 
-generate_secure_uuid() {
-  uuidgen 2>/dev/null || (echo -n "$(date +%s%N)$RANDOM" | md5sum | awk '{print $1}' | sed 's/\(........\)\(....\)\(....\)\(....\)\(............\)/\1-\2-\3-\4-\5/')
-}
-
-# Предложение сгенерировать более безопасные учетные данные
-echo "=== Генерация безопасных учетных данных ==="
-read -p "Сгенерировать новый безопасный UUID для VLESS? (Y/N, по умолчанию Y): " gen_uuid
-gen_uuid=${gen_uuid:-Y}
-gen_uuid=${gen_uuid^^}
-if [ "$gen_uuid" == "Y" ]; then
-  VLESS_WS_UUID=$(generate_secure_uuid)
-  echo "Новый UUID: $VLESS_WS_UUID"
-fi
-
-read -p "Сгенерировать новый безопасный пароль для SOCKS5? (Y/N, по умолчанию Y): " gen_socks_pass
-gen_socks_pass=${gen_socks_pass:-Y}
-gen_socks_pass=${gen_socks_pass^^}
-if [ "$gen_socks_pass" == "Y" ]; then
-  SOCKS5_PASSWORD=$(generate_secure_password)
-  echo "Новый пароль SOCKS5: $SOCKS5_PASSWORD"
-fi
-
-read -p "Сгенерировать новый безопасный пароль для Hysteria2? (Y/N, по умолчанию Y): " gen_hy2_pass
-gen_hy2_pass=${gen_hy2_pass:-Y}
-gen_hy2_pass=${gen_hy2_pass^^}
-if [ "$gen_hy2_pass" == "Y" ]; then
-  HY2_PASSWORD=$(generate_secure_password)
-  echo "Новый пароль Hysteria2: $HY2_PASSWORD"
-fi
+echo "=== Генерация UUID для всех сервисов ==="
+echo "VLESS UUID: $VLESS_WS_UUID"
+echo "SOCKS5 UUID (пароль): $SOCKS5_UUID"
+echo "Hysteria2 UUID (пароль): $HY2_UUID"
+echo ""
 
 # Ввод параметров
 input_value=""
@@ -81,18 +90,21 @@ read -p "Введите порт SOCKS5 (по умолчанию: $SOCKS5_TCP_PO
 SOCKS5_TCP_PORT="${input_value:-$SOCKS5_TCP_PORT}"
 read -p "Введите имя пользователя SOCKS5 (по умолчанию: $SOCKS5_USER): " input_value
 SOCKS5_USER="${input_value:-$SOCKS5_USER}"
-read -p "Введите пароль SOCKS5 (не должен содержать @ и :, по умолчанию: $SOCKS5_PASSWORD): " input_value
-SOCKS5_PASSWORD="${input_value:-$SOCKS5_PASSWORD}"
+read -p "Введите UUID для SOCKS5 (пароль) (по умолчанию сгенерирован): " input_value
+SOCKS5_UUID="${input_value:-$SOCKS5_UUID}"
+SOCKS5_UUID=$(validate_uuid "$SOCKS5_UUID")
 read -p "Введите порт vless+ws (по умолчанию: $VLESS_WS_TCP_PORT): " input_value
 VLESS_WS_TCP_PORT="${input_value:-$VLESS_WS_TCP_PORT}"
-read -p "Введите UUID vless+ws (по умолчанию: $VLESS_WS_UUID): " input_value
+read -p "Введите UUID для vless+ws (по умолчанию сгенерирован): " input_value
 VLESS_WS_UUID="${input_value:-$VLESS_WS_UUID}"
+VLESS_WS_UUID=$(validate_uuid "$VLESS_WS_UUID")
 read -p "Введите путь vless+ws (по умолчанию: $VLESS_WS_PATH): " input_value
 VLESS_WS_PATH="${input_value:-$VLESS_WS_PATH}"
 read -p "Введите порт hysteria2 (по умолчанию: $HY2_UDP_PORT): " input_value
 HY2_UDP_PORT="${input_value:-$HY2_UDP_PORT}"
-read -p "Введите пароль hysteria2 (по умолчанию: $HY2_PASSWORD): " input_value
-HY2_PASSWORD="${input_value:-$HY2_PASSWORD}"
+read -p "Введите UUID для hysteria2 (пароль) (по умолчанию сгенерирован): " input_value
+HY2_UUID="${input_value:-$HY2_UUID}"
+HY2_UUID=$(validate_uuid "$HY2_UUID")
 
 # Создание сценариев для запуска и остановки
 cat >start.sh <<EOF
@@ -122,16 +134,18 @@ chmod +x stop.sh
 # Остановка предыдущих процессов
 ./stop.sh
 
-# Генерация сертификата ECDSA P-256 (самый распространенный, хороший баланс безопасности и производительности)
+# Генерация сертификата с уникальным CN на основе UUID
 mkdir -p $SB_DIR/certs
 cd $SB_DIR/certs
+CERT_CN="server-$(echo $HY2_UUID | cut -d'-' -f1).com"
+
+echo "Генерация сертификата с CN: $CERT_CN"
 openssl ecparam -genkey -name prime256v1 -out private.key 2>/dev/null
 if [ $? -ne 0 ]; then
-  # Fallback если openssl не поддерживает ecparam
   openssl genrsa -out private.key 2048
-  openssl req -new -x509 -days 365 -key private.key -out cert.crt -subj "/CN=time.android.com" -sha256
+  openssl req -new -x509 -days 365 -key private.key -out cert.crt -subj "/CN=$CERT_CN" -sha256
 else
-  openssl req -new -x509 -days 365 -key private.key -out cert.crt -subj "/CN=time.android.com" -sha256
+  openssl req -new -x509 -days 365 -key private.key -out cert.crt -subj "/CN=$CERT_CN" -sha256
 fi
 chmod 600 private.key
 chmod 644 cert.crt
@@ -148,7 +162,10 @@ if [ ! -f "$SB_EXE" ]; then
   exit 1
 fi
 
-# Создание оптимизированного конфига для FreeBSD без root
+# Генерация obfs password на основе UUID (первые 16 символов без дефисов)
+OBFS_PASSWORD=$(echo $HY2_UUID | tr -d '-' | cut -c 1-16)
+
+# Создание конфига с UUID аутентификацией
 cat >config.json <<EOF
 {
   "log": {
@@ -165,12 +182,13 @@ cat >config.json <<EOF
       "users": [
         {
           "username": "$SOCKS5_USER",
-          "password": "$SOCKS5_PASSWORD"
+          "password": "$SOCKS5_UUID"
         }
       ],
       "sniff": true,
       "sniff_override_destination": true,
-      "domain_strategy": "prefer_ipv4"
+      "domain_strategy": "prefer_ipv4",
+      "udp_enabled": true
     },
     {
       "type": "vless",
@@ -187,7 +205,7 @@ cat >config.json <<EOF
         "type": "ws",
         "path": "$VLESS_WS_PATH",
         "headers": {
-          "Host": "time.android.com"
+          "Host": "$CERT_CN"
         },
         "max_early_data": 2048
       },
@@ -201,12 +219,12 @@ cat >config.json <<EOF
       "listen_port": $HY2_UDP_PORT,
       "users": [
         {
-          "password": "$HY2_PASSWORD"
+          "password": "$HY2_UUID"
         }
       ],
       "tls": {
         "enabled": true,
-        "server_name": "time.android.com",
+        "server_name": "$CERT_CN",
         "key_path": "$SB_DIR/certs/private.key",
         "certificate_path": "$SB_DIR/certs/cert.crt",
         "alpn": ["h3"],
@@ -214,12 +232,12 @@ cat >config.json <<EOF
       },
       "obfs": {
         "type": "salamander",
-        "password": "$HY2_PASSWORD"
+        "password": "$OBFS_PASSWORD"
       },
       "masquerade": {
         "type": "proxy",
         "proxy": {
-          "url": "https://time.android.com",
+          "url": "https://$CERT_CN",
           "rewrite_host": true
         }
       },
@@ -290,15 +308,13 @@ else
   exit 1
 fi
 
-## (4) Добавление планового задания без sudo
-# Создание скрипта для проверки и перезапуска
+## (4) Добавление планового задания
 cat >check_service.sh <<EOF
 #!/bin/bash
 SB_DIR="$SB_DIR"
 SB_EXE="$SB_EXE"
 LOG_FILE="\$SB_DIR/service.log"
 
-# Проверка работает ли сервис
 if ! pgrep -x "\$SB_EXE" >/dev/null; then
   echo "\$(date): Сервис не запущен, перезапуск..." >> "\$LOG_FILE"
   cd "\$SB_DIR"
@@ -307,87 +323,174 @@ if ! pgrep -x "\$SB_EXE" >/dev/null; then
   ./start-nohup.sh >/dev/null 2>&1
 fi
 
-# Очистка старых логов (сохраняем последние 1000 строк)
+# Очистка логов
 if [ -f "\$SB_DIR/singbox.log" ]; then
   tail -1000 "\$SB_DIR/singbox.log" > "\$SB_DIR/singbox.log.tmp"
   mv "\$SB_DIR/singbox.log.tmp" "\$SB_DIR/singbox.log"
-fi
-
-# Очистка nohup.log
-if [ -f "\$SB_DIR/nohup.log" ]; then
-  tail -500 "\$SB_DIR/nohup.log" > "\$SB_DIR/nohup.log.tmp"
-  mv "\$SB_DIR/nohup.log.tmp" "\$SB_DIR/nohup.log"
 fi
 EOF
 
 chmod +x check_service.sh
 
-# Добавление в cron пользователя
+# Добавление в cron
 (crontab -l 2>/dev/null | grep -v "$SB_DIR/check_service.sh"; echo "*/5 * * * * $SB_DIR/check_service.sh >/dev/null 2>&1") | crontab -
 
-## (5) Запись ссылок на узлы
-rm -f links.txt
-echo "=== Конфигурация сервера ===" > $SB_DIR/links.txt
-echo "Дата: $(date)" >> $SB_DIR/links.txt
-echo "IP сервера: $SERVER_IP" >> $SB_DIR/links.txt
-echo "" >> $SB_DIR/links.txt
+## (5) Запись конфигурации
+rm -f links.txt config-summary.txt
 
-echo "=== VLESS+WS (WebSocket) ===" >> $SB_DIR/links.txt
-echo "vless://$VLESS_WS_UUID@$SERVER_IP:$VLESS_WS_TCP_PORT?encryption=none&security=none&type=ws&path=$VLESS_WS_PATH&host=time.android.com#serv00-vless" >> $SB_DIR/links.txt
-echo "" >> $SB_DIR/links.txt
+# Создание файла со всей конфигурацией
+cat > $SB_DIR/config-summary.txt <<EOF
+==================================================
+           КОНФИГУРАЦИЯ СЕРВЕРА
+==================================================
+Дата создания: $(date)
+IP сервера: $SERVER_IP
+Домен TLS: $CERT_CN
 
-echo "=== SOCKS5 ===" >> $SB_DIR/links.txt
-echo "socks://$SOCKS5_USER:$SOCKS5_PASSWORD@$SERVER_IP:$SOCKS5_TCP_PORT#serv00-socks" >> $SB_DIR/links.txt
-echo "" >> $SB_DIR/links.txt
+==================================================
+1. SOCKS5 ПРОКСИ
+==================================================
+Порт TCP: $SOCKS5_TCP_PORT
+Имя пользователя: $SOCKS5_USER
+Пароль (UUID): $SOCKS5_UUID
+Поддержка UDP: Да
 
-echo "=== Hysteria2 (Рекомендуется) ===" >> $SB_DIR/links.txt
-echo "Сервер: $SERVER_IP" >> $SB_DIR/links.txt
-echo "Порт UDP: $HY2_UDP_PORT" >> $SB_DIR/links.txt
-echo "Пароль: $HY2_PASSWORD" >> $SB_DIR/links.txt
-echo "SNI: time.android.com" >> $SB_DIR/links.txt
-echo "Obfs: salamander" >> $SB_DIR/links.txt
-echo "Пароль obfs: $HY2_PASSWORD" >> $SB_DIR/links.txt
-echo "" >> $SB_DIR/links.txt
+Ссылка SOCKS5:
+socks://$SOCKS5_USER:$SOCKS5_UUID@$SERVER_IP:$SOCKS5_TCP_PORT#serv00-socks
 
-# Ссылка Hysteria2 для клиентов
-echo "Ссылка для клиентов Hysteria2:" >> $SB_DIR/links.txt
-echo "hysteria2://$HY2_PASSWORD@$SERVER_IP:$HY2_UDP_PORT/?sni=time.android.com&insecure=1&obfs=salamander&obfs-password=$HY2_PASSWORD&upmbps=100&downmbps=100#serv00-hy2" >> $SB_DIR/links.txt
-echo "" >> $SB_DIR/links.txt
+==================================================
+2. VLESS + WebSocket
+==================================================
+Порт TCP: $VLESS_WS_TCP_PORT
+UUID: $VLESS_WS_UUID
+Путь WS: $VLESS_WS_PATH
+Хост: $CERT_CN
 
-echo "=== Быстрая команда для клиента Hysteria2 ===" >> $SB_DIR/links.txt
-echo "Для Linux/macOS:" >> $SB_DIR/links.txt
-echo "curl -fsSL https://get.hy2.sh/ | bash" >> $SB_DIR/links.txt
-echo "hysteria client --config config.yaml" >> $SB_DIR/links.txt
-echo "" >> $SB_DIR/links.txt
+Ссылка VLESS:
+vless://$VLESS_WS_UUID@$SERVER_IP:$VLESS_WS_TCP_PORT?encryption=none&security=none&type=ws&path=$VLESS_WS_PATH&host=$CERT_CN#serv00-vless
 
-# Создание примера конфига для клиента Hysteria2
-cat > $SB_DIR/client-config-hysteria2.yaml <<EOF
+==================================================
+3. HYSTERIA 2.0 (РЕКОМЕНДУЕТСЯ)
+==================================================
+Порт UDP: $HY2_UDP_PORT
+Пароль (UUID): $HY2_UUID
+TLS SNI: $CERT_CN
+Obfs: salamander
+Пароль obfs: $OBFS_PASSWORD
+Скорость: 100 Mbps ↑/↓
+
+Ссылка Hysteria2:
+hysteria2://$HY2_UUID@$SERVER_IP:$HY2_UDP_PORT/?sni=$CERT_CN&insecure=1&obfs=salamander&obfs-password=$OBFS_PASSWORD&upmbps=100&downmbps=100#serv00-hy2
+
+Команда для быстрого подключения:
+curl -x socks5://$SOCKS5_USER:$SOCKS5_UUID@$SERVER_IP:$SOCKS5_TCP_PORT https://google.com
+
+==================================================
+УПРАВЛЕНИЕ СЕРВИСОМ
+==================================================
+Запуск:    $SB_DIR/start-nohup.sh
+Остановка: $SB_DIR/stop.sh
+Логи:      $SB_DIR/singbox.log
+Конфиг:    $SB_DIR/config.json
+Авто-перезапуск: каждые 5 минут
+EOF
+
+# Создание конфига для клиента Hysteria2
+cat > $SB_DIR/client-hysteria2.yaml <<EOF
+# Конфигурация клиента Hysteria2
 server: $SERVER_IP:$HY2_UDP_PORT
-auth: $HY2_PASSWORD
+auth: $HY2_UUID
+
 tls:
-  sni: time.android.com
+  sni: $CERT_CN
   insecure: true
+  alpn: h3
+
 obfs:
   type: salamander
-  password: $HY2_PASSWORD
+  password: $OBFS_PASSWORD
+
 bandwidth:
   up: 100 mbps
   down: 100 mbps
+
+fastOpen: true
+lazyStart: true
+
 socks5:
   listen: 127.0.0.1:1080
+  disableUdp: false
+
 http:
   listen: 127.0.0.1:8080
+  user: proxy
+  password: $SOCKS5_UUID
+
+# Оптимизации для FreeBSD
+udpIdleTimeout: 60s
+maxUdpRelayPacketSize: 1400
 EOF
 
-echo "Пример конфига клиента Hysteria2 сохранен: $SB_DIR/client-config-hysteria2.yaml" >> $SB_DIR/links.txt
+# Создание конфига для клиента v2ray (VLESS)
+cat > $SB_DIR/client-vless.json <<EOF
+{
+  "inbounds": [
+    {
+      "port": 1080,
+      "protocol": "socks",
+      "settings": {
+        "auth": "noauth",
+        "udp": true
+      }
+    }
+  ],
+  "outbounds": [
+    {
+      "protocol": "vless",
+      "settings": {
+        "vnext": [
+          {
+            "address": "$SERVER_IP",
+            "port": $VLESS_WS_TCP_PORT,
+            "users": [
+              {
+                "id": "$VLESS_WS_UUID",
+                "encryption": "none"
+              }
+            ]
+          }
+        ]
+      },
+      "streamSettings": {
+        "network": "ws",
+        "security": "none",
+        "wsSettings": {
+          "path": "$VLESS_WS_PATH",
+          "headers": {
+            "Host": "$CERT_CN"
+          }
+        }
+      }
+    }
+  ]
+}
+EOF
 
-cat $SB_DIR/links.txt
 echo ""
-echo -e "\e[1;32m✓ Настройка завершена!\e[0m"
-echo -e "\e[1;33m• Конфиг: $SB_DIR/config.json\e[0m"
-echo -e "\e[1;33m• Логи: $SB_DIR/singbox.log\e[0m"
-echo -e "\e[1;33m• Ссылки: $SB_DIR/links.txt\e[0m"
-echo -e "\e[1;33m• Конфиг клиента Hysteria2: $SB_DIR/client-config-hysteria2.yaml\e[0m"
-echo -e "\e[1;33m• Проверка сервиса каждые 5 минут\e[0m"
-echo -e "\e[1;36mДля остановки: $SB_DIR/stop.sh\e[0m"
-echo -e "\e[1;36mДля запуска: $SB_DIR/start-nohup.sh\e[0m"
+echo -e "\e[1;36m==================================================\e[0m"
+echo -e "\e[1;32m✓ НАСТРОЙКА ЗАВЕРШЕНА!\e[0m"
+echo -e "\e[1;36m==================================================\e[0m"
+echo ""
+echo -e "\e[1;33m▸ Все пароли заменены на UUID для безопасности\e[0m"
+echo -e "\e[1;33m▸ Конфигурация сохранена: $SB_DIR/config-summary.txt\e[0m"
+echo -e "\e[1;33m▸ Конфиг клиента Hysteria2: $SB_DIR/client-hysteria2.yaml\e[0m"
+echo -e "\e[1;33m▸ Конфиг клиента VLESS: $SB_DIR/client-vless.json\e[0m"
+echo -e "\e[1;33m▸ Домен TLS: $CERT_CN (уникальный на основе UUID)\e[0m"
+echo ""
+echo -e "\e[1;32mСгенерированные UUID:\e[0m"
+echo -e "  VLESS: \e[1;36m$VLESS_WS_UUID\e[0m"
+echo -e "  SOCKS5: \e[1;36m$SOCKS5_UUID\e[0m"
+echo -e "  Hysteria2: \e[1;36m$HY2_UUID\e[0m"
+echo -e "  Obfs: \e[1;36m$OBFS_PASSWORD\e[0m"
+echo ""
+echo -e "\e[1;35mДля подключения используйте ссылки из config-summary.txt\e[0m"
