@@ -1,189 +1,180 @@
 #!/bin/bash
-## (1) Настройка узлов
-# IP-адрес сервера (используется только для вывода ссылки на узел)
-SERVER_IP="s1.serv00.com"
-# Настройка SOCKS5
-SOCKS5_TCP_PORT=26584
-SOCKS5_USER="nxhack"
-SOCKS5_PASSWORD="dnCh2Cw4WdfbQHp4"
-# Настройка vless+ws
-VLESS_WS_TCP_PORT=55031
-VLESS_WS_UUID="4b8ba16b-7a7f-46a9-8575-7b0a5595fa02"
-VLESS_WS_PATH="/ray"
-# Настройка hysteria2
-HY2_UDP_PORT=55197
-HY2_PASSWORD="hY7zME9p1vfmFHFT"
 
-## (2) Установка и настройка sing-box
-# Путь установки sing-box
+# --- Цвета ---
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+PURPLE='\033[0;35m'
+CYAN='\033[0;36m'
+NC='\033[0m'
+
+# --- Пути ---
 SB_DIR="$HOME/.syslogd"
-# Переименование программы sing-box
 SB_EXE=".service"
+ENV_FILE="$SB_DIR/.env"
+CONFIG_FILE="$SB_DIR/config.json"
 
-# Инициализация
-if [ -d "$SB_DIR" ]; then
-  read -p "Хотите переустановить? Переустановка сбросит настройки (Y/N, по умолчанию N): " choice
-  choice=${choice^^} # Преобразование в верхний регистр
-  if [ "$choice" == "Y" ]; then
-    echo "Переустановка..."
-    # Здесь добавьте код для сброса данных
-  else
-    echo "Переустановка отменена..."
-    exit 1
-  fi
-fi
+info() { echo -e "${CYAN}[INFO]${NC} $1"; }
+success() { echo -e "${GREEN}[SUCCESS]${NC} $1"; }
+warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
+error() { echo -e "${RED}[ERROR]${NC} $1"; }
 
-# Сброс настроек
-# Удаление старых настроек
-rm -rf $SB_DIR
-mkdir -p $SB_DIR
-cd $SB_DIR
-# Удаление связанных с этим заданий (если ранее были установлены)
-crontab -l | grep -v $SB_DIR | crontab -
-# Создание сценариев для запуска и остановки
-cat >start.sh <<EOF
-$SB_DIR/$SB_EXE run -c $SB_DIR/config.json
+# Функция генерации UUID
+gen_uuid() {
+    if command -v uuidgen >/dev/null 2>&1; then
+        uuidgen
+    else
+        cat /proc/sys/kernel/random/uuid 2>/dev/null || openssl rand -hex 16 | sed -r 's/(.{8})(.{4})(.{4})(.{4})(.{12})/\1-\2-\3-\4-\5/'
+    fi
+}
+
+# Загрузка или генерация настроек
+load_env() {
+    if [ -f "$ENV_FILE" ]; then
+        source "$ENV_FILE"
+    else
+        info "Первая настройка: генерация уникальных идентификаторов..."
+        SERVER_IP="s1.serv00.com"
+        SOCKS5_TCP_PORT=26584
+        SOCKS5_USER="user_$(openssl rand -hex 3)"
+        
+        # Генерируем UUID вместо обычных паролей
+        SOCKS5_PASSWORD=$(gen_uuid)
+        VLESS_WS_UUID=$(gen_uuid)
+        HY2_PASSWORD=$(gen_uuid)
+        HY2_OBFS_PASS=$(gen_uuid)
+        
+        VLESS_WS_TCP_PORT=55031
+        VLESS_WS_PATH="/ray-$(openssl rand -hex 4)"
+        HY2_UDP_PORT=55197
+        save_env
+    fi
+}
+
+save_env() {
+    cat > "$ENV_FILE" <<EOF
+SERVER_IP="$SERVER_IP"
+SOCKS5_TCP_PORT=$SOCKS5_TCP_PORT
+SOCKS5_USER="$SOCKS5_USER"
+SOCKS5_PASSWORD="$SOCKS5_PASSWORD"
+VLESS_WS_TCP_PORT=$VLESS_WS_TCP_PORT
+VLESS_WS_UUID="$VLESS_WS_UUID"
+VLESS_WS_PATH="$VLESS_WS_PATH"
+HY2_UDP_PORT=$HY2_UDP_PORT
+HY2_PASSWORD="$HY2_PASSWORD"
+HY2_OBFS_PASS="$HY2_OBFS_PASS"
 EOF
-chmod +x start.sh
-cat >start-nohup.sh <<EOF
-nohup $SB_DIR/start.sh >/dev/null 2>&1 &
-EOF
-chmod +x start-nohup.sh
-cat >stop.sh <<EOF
-ps aux|grep $SB_EXE|grep -v grep | awk '{print \$2}'|xargs kill -9
-EOF
-chmod +x stop.sh
-./stop.sh
+}
 
-input_value=""
-read -p "Введите IP-адрес сервера (по умолчанию: $SERVER_IP): " input_value
-SERVER_IP="${input_value:-$SERVER_IP}"
-read -p "Введите порт SOCKS5 (по умолчанию: $SOCKS5_TCP_PORT): " input_value
-SOCKS5_TCP_PORT="${input_value:-$SOCKS5_TCP_PORT}"
-read -p "Введите имя пользователя SOCKS5 (по умолчанию: $SOCKS5_USER): " input_value
-SOCKS5_USER="${input_value:-$SOCKS5_USER}"
-read -p "Введите пароль SOCKS5 (не должен содержать @ и :, по умолчанию: $SOCKS5_PASSWORD): " input_value
-SOCKS5_PASSWORD="${input_value:-$SOCKS5_PASSWORD}"
-read -p "Введите порт vless+ws (по умолчанию: $VLESS_WS_TCP_PORT): " input_value
-VLESS_WS_TCP_PORT="${input_value:-$VLESS_WS_TCP_PORT}"
-read -p "Введите UUID vless+ws (по умолчанию: $VLESS_WS_UUID): " input_value
-VLESS_WS_UUID="${input_value:-$VLESS_WS_UUID}"
-read -p "Введите путь vless+ws (по умолчанию: $VLESS_WS_PATH): " input_value
-VLESS_WS_PATH="${input_value:-$VLESS_WS_PATH}"
-read -p "Введите порт hysteria2 (по умолчанию: $HY2_UDP_PORT): " input_value
-HY2_UDP_PORT="${input_value:-$HY2_UDP_PORT}"
-read -p "Введите пароль hysteria2 (по умолчанию: $HY2_PASSWORD): " input_value
-HY2_PASSWORD="${input_value:-$HY2_PASSWORD}"
+stop_service() {
+    pkill -f "$SB_EXE" && success "Сервис остановлен" || warn "Процесс не найден"
+    rm -f "$SB_DIR/nohup.out" 2>/dev/null
+}
 
-# Генерация самоподписанного сертификата для узла hysteria2
-mkdir -p $SB_DIR/certs
-cd $SB_DIR/certs
-openssl ecparam -genkey -name prime256v1 -out private.key
-openssl req -new -x509 -days 36500 -key private.key -out cert.crt -subj "/EN=time.android.com"
-chmod 666 cert.crt
-chmod 666 private.key
-
-# Скачивание версии sing-box для FreeBSD (переименован в sb, чтобы избежать обнаружения сервером)
-cd $SB_DIR
-wget https://github.com/qlxi/singbox-for-serv00/releases/download/singbox/singbox -O $SB_EXE
-chmod +x $SB_EXE
-
-cat >config.json <<EOF
+create_config() {
+    cat > "$CONFIG_FILE" <<EOF
 {
+  "log": { "level": "silent", "disabled": true },
   "inbounds": [
     {
-      "type": "socks",
+      "type": "hysteria2",
+      "tag": "hy2-in",
       "listen": "::",
-      "listen_port": $SOCKS5_TCP_PORT,
-      "users": [
-        {
-          "username": "$SOCKS5_USER",
-          "password": "$SOCKS5_PASSWORD"
-        }
-      ]
+      "listen_port": $HY2_UDP_PORT,
+      "users": [ { "password": "$HY2_PASSWORD" } ],
+      "obfs": { "type": "salamander", "password": "$HY2_OBFS_PASS" },
+      "up_mbps": 100,
+      "down_mbps": 100,
+      "ignore_client_bandwidth": true,
+      "tls": {
+        "enabled": true,
+        "server_name": "$SERVER_IP",
+        "key_path": "$SB_DIR/certs/private.key",
+        "certificate_path": "$SB_DIR/certs/cert.crt"
+      },
+      "masquerade": "https://www.bing.com"
     },
     {
       "type": "vless",
       "listen": "::",
       "listen_port": $VLESS_WS_TCP_PORT,
-      "users": [
-        {
-          "uuid": "$VLESS_WS_UUID",
-          "flow": ""
-        }
-      ],
-      "transport": {
-        "type": "ws",
-        "path": "$VLESS_WS_PATH"
-      }
-    },
-    {
-      "type": "hysteria2",
-      "listen": "::",
-      "listen_port": $HY2_UDP_PORT,
-      "users": [
-        {
-          "password": "$HY2_PASSWORD"
-        }
-      ],
-      "tls": {
-        "enabled": true,
-        "server_name": "time.android.com",
-        "key_path": "$SB_DIR/certs/private.key",
-        "certificate_path": "$SB_DIR/certs/cert.crt"
-      },
-      "masquerade": "https://time.android.com"
+      "users": [ { "uuid": "$VLESS_WS_UUID" } ],
+      "transport": { "type": "ws", "path": "$VLESS_WS_PATH" }
     }
   ],
   "outbounds": [
-    {
-      "tag": "direct",
-      "type": "direct"
-    },
-    {
-      "tag": "block",
-      "type": "block"
-    }
+    { "type": "direct", "tag": "direct" },
+    { "type": "block", "tag": "block" }
   ],
   "route": {
     "rules": [
-      {
-        "rule_set": "geosite-ads",
-        "outbound": "block"
-      },
-      {
-        "ip_is_private": true,
-        "outbound": "direct"
-      }
+      { "rule_set": "ads", "outbound": "block" },
+      { "ip_is_private": true, "outbound": "direct" }
     ],
     "rule_set": [
       {
         "type": "remote",
-        "tag": "geosite-ads",
+        "tag": "ads",
         "format": "binary",
-        "url": "https://raw.githubusercontent.com/hiddify/hiddify-geo/rule-set/block/geosite-category-ads-all.srs",
-        "download_detour": "direct",
-        "update_interval": "120h0m0s"
+        "url": "https://raw.githubusercontent.com/SagerNet/sing-geosite/rule-set/geosite-category-ads-all.srs",
+        "download_detour": "direct"
       }
     ]
   }
 }
 EOF
-
-## (3) Запуск в фоновом режиме
-# Запуск в фоновом режиме
-./start-nohup.sh
-sleep 2
-pgrep -x "$SB_EXE" >/dev/null && echo -e "\e[1;32m$SB_EXE работает\e[0m" || {
-  echo -e "\e[1;35m$SB_EXE не работает...\e[0m"
-  exit 1
 }
 
-## (4) Добавление планового задания для cron
-bash <(curl -s https://raw.githubusercontent.com/qlxi/singbox-for-serv00/main/singbox/check_cron_sb.sh)
+# --- Интерфейс ---
+mkdir -p "$SB_DIR/certs"
+load_env
 
-## (5) Запись ссылок на узлы в файл links.txt
-rm -f links.txt
-echo "Ссылка vless+ws：vless://$VLESS_WS_UUID@$SERVER_IP:$VLESS_WS_TCP_PORT?encryption=none&security=none&type=ws&path=$VLESS_WS_PATH#serv00-vless" >>$SB_DIR/links.txt
-echo "Ссылка socks5：socks://$SOCKS5_USER:$SOCKS5_PASSWORD@$SERVER_IP:$SOCKS5_TCP_PORT#serv00-socks" >>$SB_DIR/links.txt
-echo "Ссылка hysteria2：hysteria2://$HY2_PASSWORD@$SERVER_IP:$HY2_UDP_PORT/?sni=time.android.com&insecure=1#serv00-hy2" >>$SB_DIR/links.txt
+while true; do
+    echo -e "\n${BLUE}=== Hysteria2 UUID-Auto Panel (Serv00) ===${NC}"
+    echo "1) Установить / Обновить (Авто-UUID, Скорость, Без логов)"
+    echo "2) Быстрый перезапуск"
+    echo "3) Остановить"
+    echo "4) Показать ссылки и UUID"
+    echo "5) Удалить всё"
+    echo "0) Выход"
+    read -p "Выберите действие: " opt
+
+    case $opt in
+        1)
+            read -p "IP сервера [$SERVER_IP]: " input; SERVER_IP=${input:-$SERVER_IP}
+            read -p "Порт Hy2 [$HY2_UDP_PORT]: " input; HY2_UDP_PORT=${input:-$HY2_UDP_PORT}
+            save_env
+            
+            info "Генерация сертификатов..."
+            openssl ecparam -genkey -name prime256v1 -out "$SB_DIR/certs/private.key"
+            openssl req -new -x509 -days 36500 -key "$SB_DIR/certs/private.key" -out "$SB_DIR/certs/cert.crt" -subj "/CN=$SERVER_IP"
+            
+            info "Загрузка Sing-box..."
+            wget -q https://github.com/qlxi/singbox-for-serv00/releases/download/singbox/singbox -O "$SB_DIR/$SB_EXE"
+            chmod +x "$SB_DIR/$SB_EXE"
+            
+            create_config
+            stop_service
+            nohup "$SB_DIR/$SB_EXE" run -c "$CONFIG_FILE" >/dev/null 2>&1 &
+            sleep 2
+            success "Всё готово! UUID сгенерированы автоматически."
+            
+            # Крон
+            bash <(curl -s https://raw.githubusercontent.com/qlxi/singbox-for-serv00/main/singbox/check_cron_sb.sh) 2>/dev/null
+            ;;
+        2) stop_service; nohup "$SB_DIR/$SB_EXE" run -c "$CONFIG_FILE" >/dev/null 2>&1 &; success "Перезапущено" ;;
+        3) stop_service ;;
+        4)
+            echo -e "\n${PURPLE}--- ВАШИ ДАННЫЕ (UUID) ---${NC}"
+            echo -e "${YELLOW}Hysteria2 UUID:${NC} $HY2_PASSWORD"
+            echo -e "${YELLOW}VLESS UUID:${NC}     $VLESS_WS_UUID"
+            echo -e "\n${CYAN}--- ГОТОВАЯ ССЫЛКА HYSTERIA2 ---${NC}"
+            echo -e "hysteria2://$HY2_PASSWORD@$SERVER_IP:$HY2_UDP_PORT/?sni=$SERVER_IP&obfs=salamander&obfs-password=$HY2_OBFS_PASS&insecure=1#Serv00_UUID_Safe"
+            echo -e "${PURPLE}--------------------------${NC}"
+            ;;
+        5) stop_service; rm -rf "$SB_DIR"; success "Всё удалено"; exit 0 ;;
+        0) exit 0 ;;
+        *) error "Неверный ввод" ;;
+    esac
+done
