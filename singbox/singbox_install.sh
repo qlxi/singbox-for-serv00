@@ -25,34 +25,32 @@ gen_uuid() {
     if command -v uuidgen >/dev/null 2>&1; then
         uuidgen
     else
-        cat /proc/sys/kernel/random/uuid 2>/dev/null || openssl rand -hex 16 | sed -r 's/(.{8})(.{4})(.{4})(.{4})(.{12})/\1-\2-\3-\4-\5/'
+        openssl rand -hex 16 | sed -E 's/(.{8})(.{4})(.{4})(.{4})(.{12})/\1-\2-\3-\4-\5/'
     fi
 }
 
-# Загрузка или генерация настроек
+# Загрузка настроек
 load_env() {
     if [ -f "$ENV_FILE" ]; then
         source "$ENV_FILE"
     else
-        info "Первая настройка: генерация уникальных идентификаторов..."
+        info "Первая настройка: генерация UUID..."
         SERVER_IP="s1.serv00.com"
         SOCKS5_TCP_PORT=26584
         SOCKS5_USER="user_$(openssl rand -hex 3)"
-        
-        # Генерируем UUID вместо обычных паролей
         SOCKS5_PASSWORD=$(gen_uuid)
         VLESS_WS_UUID=$(gen_uuid)
-        HY2_PASSWORD=$(gen_uuid)
-        HY2_OBFS_PASS=$(gen_uuid)
-        
         VLESS_WS_TCP_PORT=55031
         VLESS_WS_PATH="/ray-$(openssl rand -hex 4)"
         HY2_UDP_PORT=55197
+        HY2_PASSWORD=$(gen_uuid)
+        HY2_OBFS_PASS=$(gen_uuid)
         save_env
     fi
 }
 
 save_env() {
+    mkdir -p "$SB_DIR"
     cat > "$ENV_FILE" <<EOF
 SERVER_IP="$SERVER_IP"
 SOCKS5_TCP_PORT=$SOCKS5_TCP_PORT
@@ -131,11 +129,11 @@ mkdir -p "$SB_DIR/certs"
 load_env
 
 while true; do
-    echo -e "\n${BLUE}=== Hysteria2 UUID-Auto Panel (Serv00) ===${NC}"
-    echo "1) Установить / Обновить (Авто-UUID, Скорость, Без логов)"
+    echo -e "\n${BLUE}=== Hysteria2 UUID Panel (Fixed) ===${NC}"
+    echo "1) Установить / Обновить"
     echo "2) Быстрый перезапуск"
     echo "3) Остановить"
-    echo "4) Показать ссылки и UUID"
+    echo "4) Показать ссылки"
     echo "5) Удалить всё"
     echo "0) Выход"
     read -p "Выберите действие: " opt
@@ -145,35 +143,36 @@ while true; do
             read -p "IP сервера [$SERVER_IP]: " input; SERVER_IP=${input:-$SERVER_IP}
             read -p "Порт Hy2 [$HY2_UDP_PORT]: " input; HY2_UDP_PORT=${input:-$HY2_UDP_PORT}
             save_env
-            
-            info "Генерация сертификатов..."
             openssl ecparam -genkey -name prime256v1 -out "$SB_DIR/certs/private.key"
             openssl req -new -x509 -days 36500 -key "$SB_DIR/certs/private.key" -out "$SB_DIR/certs/cert.crt" -subj "/CN=$SERVER_IP"
-            
-            info "Загрузка Sing-box..."
             wget -q https://github.com/qlxi/singbox-for-serv00/releases/download/singbox/singbox -O "$SB_DIR/$SB_EXE"
             chmod +x "$SB_DIR/$SB_EXE"
-            
             create_config
             stop_service
             nohup "$SB_DIR/$SB_EXE" run -c "$CONFIG_FILE" >/dev/null 2>&1 &
-            sleep 2
-            success "Всё готово! UUID сгенерированы автоматически."
-            
-            # Крон
+            success "Запущено в фоне (логи отключены)"
             bash <(curl -s https://raw.githubusercontent.com/qlxi/singbox-for-serv00/main/singbox/check_cron_sb.sh) 2>/dev/null
             ;;
-        2) stop_service; nohup "$SB_DIR/$SB_EXE" run -c "$CONFIG_FILE" >/dev/null 2>&1 &; success "Перезапущено" ;;
-        3) stop_service ;;
-        4)
-            echo -e "\n${PURPLE}--- ВАШИ ДАННЫЕ (UUID) ---${NC}"
-            echo -e "${YELLOW}Hysteria2 UUID:${NC} $HY2_PASSWORD"
-            echo -e "${YELLOW}VLESS UUID:${NC}     $VLESS_WS_UUID"
-            echo -e "\n${CYAN}--- ГОТОВАЯ ССЫЛКА HYSTERIA2 ---${NC}"
-            echo -e "hysteria2://$HY2_PASSWORD@$SERVER_IP:$HY2_UDP_PORT/?sni=$SERVER_IP&obfs=salamander&obfs-password=$HY2_OBFS_PASS&insecure=1#Serv00_UUID_Safe"
-            echo -e "${PURPLE}--------------------------${NC}"
+        2)
+            stop_service
+            nohup "$SB_DIR/$SB_EXE" run -c "$CONFIG_FILE" >/dev/null 2>&1 &
+            success "Перезапущено"
             ;;
-        5) stop_service; rm -rf "$SB_DIR"; success "Всё удалено"; exit 0 ;;
+        3)
+            stop_service
+            ;;
+        4)
+            echo -e "\n${PURPLE}--- HYSTERIA2 (UUID) ---${NC}"
+            echo -e "Ссылка: hysteria2://$HY2_PASSWORD@$SERVER_IP:$HY2_UDP_PORT/?sni=$SERVER_IP&obfs=salamander&obfs-password=$HY2_OBFS_PASS&insecure=1#Serv00_UUID"
+            echo -e "\n${CYAN}--- VLESS ---${NC}"
+            echo -e "vless://$VLESS_WS_UUID@$SERVER_IP:$VLESS_WS_TCP_PORT?encryption=none&security=none&type=ws&path=$VLESS_WS_PATH#Serv00_VLESS"
+            ;;
+        5)
+            stop_service
+            rm -rf "$SB_DIR"
+            success "Удалено"
+            exit 0
+            ;;
         0) exit 0 ;;
         *) error "Неверный ввод" ;;
     esac
