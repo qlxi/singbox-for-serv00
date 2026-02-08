@@ -20,7 +20,7 @@ success() { echo -e "${GREEN}[SUCCESS]${NC} $1"; }
 warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
 error() { echo -e "${RED}[ERROR]${NC} $1"; }
 
-# Функция генерации UUID
+# Функция генерации UUID (совместимая с FreeBSD)
 gen_uuid() {
     if command -v uuidgen >/dev/null 2>&1; then
         uuidgen
@@ -150,7 +150,7 @@ while true; do
             create_config
             stop_service
             nohup "$SB_DIR/$SB_EXE" run -c "$CONFIG_FILE" >/dev/null 2>&1 &
-            success "Запущено в фоне (логи отключены)"
+            success "Установка завершена. Логи отключены."
             bash <(curl -s https://raw.githubusercontent.com/qlxi/singbox-for-serv00/main/singbox/check_cron_sb.sh) 2>/dev/null
             ;;
         2)
@@ -163,7 +163,7 @@ while true; do
             ;;
         4)
             echo -e "\n${PURPLE}--- HYSTERIA2 (UUID) ---${NC}"
-            echo -e "Ссылка: hysteria2://$HY2_PASSWORD@$SERVER_IP:$HY2_UDP_PORT/?sni=$SERVER_IP&obfs=salamander&obfs-password=$HY2_OBFS_PASS&insecure=1#Serv00_UUID"
+            echo -e "Ссылка: hysteria2://$HY2_PASSWORD@$SERVER_IP:$HY2_UDP_PORT/?sni=$SERVER_IP&obfs=salamander&obfs-password=$HY2_OBFS_PASS&insecure=1#Serv00_Fast"
             echo -e "\n${CYAN}--- VLESS ---${NC}"
             echo -e "vless://$VLESS_WS_UUID@$SERVER_IP:$VLESS_WS_TCP_PORT?encryption=none&security=none&type=ws&path=$VLESS_WS_PATH#Serv00_VLESS"
             ;;
